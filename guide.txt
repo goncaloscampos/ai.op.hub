@@ -1,0 +1,4 @@
+if we don't have a SAN, then we need one.
+if we have the SAN, Client Acceptance can be requested to KYC.
+if we have Client Acceptance, an EA (Engagement Acceptance) can be done.
+if we need to open a job, we need a SAN, a signed EL and an EA.

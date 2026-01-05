@@ -1,0 +1,96 @@
+[
+    {
+        "project": "test6",
+        "reasoning": "The user has a SAN and wants to open a job. According to the provided guide, opening a job requires a SAN, a signed EL, and an EA. The user already has the SAN, so the next steps are:\n\n1. Obtain a signed EL.\n2. Request Client Acceptance from KYC (since we only have a SAN).\n3. Once Client Acceptance is obtained, proceed to obtain the Engagement Acceptance (EA).\n\nThese are the tasks that need to be completed.",
+        "tasks": [
+            {
+                "task": "Obtain signed EL",
+                "done": false
+            },
+            {
+                "task": "Request Client Acceptance from KYC",
+                "done": false
+            },
+            {
+                "task": "Obtain Engagement Acceptance (EA)",
+                "done": false
+            }
+        ]
+    },
+    {
+        "project": "test7",
+        "reasoning": "The user has a SAN, which is the first requirement for opening a job. According to the guide, an open job also requires a signed EL and an EA. Since the user has only the SAN, the next steps are to obtain a signed EL and to get an EA. Typically, an EA can only be performed after Client Acceptance (KYC) is completed. Therefore, the tasks needed are:\n\n1. Request Client Acceptance (KYC) to allow the EA step.\n2. Obtain a signed EL.\n3. Perform the EA.\n\nThese steps will satisfy all prerequisites for opening a job.",
+        "tasks": [
+            {
+                "task": "Request Client Acceptance",
+                "done": false
+            },
+            {
+                "task": "Obtain signed EL",
+                "done": false
+            },
+            {
+                "task": "Perform EA",
+                "done": false
+            }
+        ]
+    },
+    {
+        "project": "test54",
+        "reasoning": "The user states that a job is needed and that a SAN (Service Authorization Number) is already available. According to the guide:\n\n1. **With a SAN**, the next step is to request Client Acceptance from KYC.\n2. **Client Acceptance** leads to an Engagement Acceptance (EA).\n3. To **open a job**, we also require a signed EL (Engagement Letter) in addition to the SAN and EA.\n\nGiven the current status (SAN present but no EL, EA, or Client Acceptance), the logical sequence of tasks is:\n\n- Request Client Acceptance to KYC.\n- Obtain a signed EL.\n- Obtain an EA.\n- Finally, open the job.\n\nThese steps ensure all prerequisites are satisfied before initiating the job.",
+        "tasks": [
+            {
+                "task": "Request Client Acceptance to KYC",
+                "done": false
+            },
+            {
+                "task": "Obtain signed EL",
+                "done": false
+            },
+            {
+                "task": "Obtain EA",
+                "done": false
+            },
+            {
+                "task": "Open job",
+                "done": false
+            }
+        ]
+    },
+    {
+        "project": "test1 (1)",
+        "reasoning": "The user states they already have a SAN and need an open job. According to the guide, opening a job requires a SAN, a signed Engagement Letter (EL), and an Engagement Acceptance (EA). Since the user has the SAN but lacks a signed EL and an EA, the necessary tasks are:\n\n1. **Request Client Acceptance to KYC** \u2013 The presence of a SAN allows requesting client acceptance, which is a prerequisite for the EA process.\n2. **Obtain a signed Engagement Letter (EL)** \u2013 This is a mandatory document for job opening.\n3. **Obtain Engagement Acceptance (EA)** \u2013 With the EL signed and client acceptance in place, the EA can be completed.\n\nThese steps will enable the user to open the job as required.",
+        "tasks": [
+            {
+                "task": "Request Client Acceptance to KYC",
+                "done": false
+            },
+            {
+                "task": "Obtain a signed Engagement Letter (EL)",
+                "done": false
+            },
+            {
+                "task": "Obtain Engagement Acceptance (EA)",
+                "done": false
+            }
+        ]
+    },
+    {
+        "project": "test1",
+        "reasoning": "The user has a SAN but needs to open a job. According to the process, opening a job requires a SAN, a signed EL, and an EA. Since the user only has the SAN, the next steps are to obtain a signed EL and an EA before the job can be opened. The tasks to accomplish this are:\n\n1. Obtain a signed EL.  \n2. Obtain an Engagement Acceptance (EA).  \n3. Open the job once the above prerequisites are met.",
+        "tasks": [
+            {
+                "task": "Obtain signed EL",
+                "done": false
+            },
+            {
+                "task": "Obtain Engagement Acceptance (EA)",
+                "done": false
+            },
+            {
+                "task": "Open the job",
+                "done": false
+            }
+        ]
+    }
+]
