@@ -11,11 +11,7 @@ st.set_page_config(layout="wide")
 # --- SAFE UI RESET ---
 if st.session_state.get("pending_clear_notes"):
     st.session_state.user_input_key = ""
-<<<<<<< HEAD
-    st.session_state.pending_clear_notes =  False
-=======
-    st.session_state.pending_clear_notes = True
->>>>>>> 8ee17f2f2364c586b85fa0c2baa36b51179acad0
+    st.session_state.pending_clear_notes = False
 
 # --- ARCHIVE LOGIC ---
 def close_archive():
