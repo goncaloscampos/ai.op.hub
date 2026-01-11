@@ -21,7 +21,6 @@ def open_archive():
     """Explicitly opens the recently deleted expander."""
     st.session_state.archive_open = True
 
-
 # --- INITIALIZE ---
 if "archive_open" not in st.session_state:
     st.session_state.archive_open = False
@@ -29,6 +28,14 @@ if "trash_archive" not in st.session_state:
     st.session_state.trash_archive = []
 if "analysis_ready" not in st.session_state:
     st.session_state.analysis_ready = False
+if "trigger_analysis" not in st.session_state:
+    st.session_state.trigger_analysis = False
+if "run_ai_now" not in st.session_state:
+    st.session_state.run_ai_now = False
+if "sidebar_breaker" not in st.session_state:
+    st.session_state.sidebar_breaker = False
+if "user_input_key" not in st.session_state:
+    st.session_state.user_input_key = "I need an open job, I only have a SAN and CA" # DEBUG TEXT --- REMOVE IN PRODUCTION
 
 # --- API CLIENT SETUP ---
 client=OpenAI(
@@ -107,32 +114,72 @@ def delete_from_history(history_data, project_name):
             
     return deleted_item
 
-@st.dialog("Create New Project 📁")
-def new_project_dialog(should_trigger=False):
-    # Using a form allows "Enter" to trigger the submit button
-    with st.form("new_project_form", clear_on_submit=True):
-        st.write("What would you like to call this project?")
-        new_name = st.text_input("Project Name", placeholder="e.g., Client - Job Name")
-        
-        # This button handles both the click and the "Enter" keypress
-        submitted = st.form_submit_button("Confirm ✅", use_container_width=True)
-        
-        if submitted:
-            if new_name:
-                history = load_history()
-                final_name = get_unique_name(all_history, new_name)
-                st.session_state.current_project_name = final_name
+def analysis_engine(kb, notes):
+    # AI Call logic here
+    st.info("Analysis started")
+    with st.spinner("Please wait a few seconds..."):
+            # This prioritizes the notes captured just before the text area was cleared
+            captured_notes = notes
+            # Initialize variables
+            reasoning = ""
+            final_answer = ""
+            max_attempts = 3
+            attempt = 0
+            valid_response = False
 
-                if should_trigger:
-                    st.session_state.analysis_ready = True
+            while attempt < max_attempts and not valid_response:
+                attempt += 1
+                response = client.chat.completions.create(
+                    model="gpt-oss:20b",
+                    messages=[
+                        {
+                            "role": "system", 
+                            "content": (
+                                "You are a Senior Operational Excellence Consultant. "
+                                "STRICT REQUIREMENT: You must provide your output in two parts. "
+                                "1. Your reasoning/thought process. "
+                                "2. The string '---SEPARATOR---' on its own line. "
+                                "3. A JSON list of strings for the tasks. "
+                                "Example: Reasoning here... \n---SEPARATOR---\n[\"Task 1\"]"
+                                '["Task 1", "Task 2", "Task 3"]'
+                            )
+                        },
+                        {
+                            "role": "user", 
+                            "content": f"Guide:\n{kb}\n\nNotes:\n{notes}"
+                        }
+                    ],
+                    temperature=0.7 # Slight randomness helps avoid repeating the same mistake
+                )
+                
+                full_response = response.choices[0].message.content
 
-                # Cleanup We keep the user_input_area so notes aren't lost!
-                if "selected_analysis" in st.session_state:
-                    del st.session_state.selected_analysis
-            
+                if full_response and "---SEPARATOR---" in full_response:
+                    reasoning, final_answer = full_response.split("---SEPARATOR---", 1)
+                    
+                    try:
+                        tasks=parse_tasks(final_answer.strip())
+                        save_to_history(st.session_state.current_project_name, reasoning.strip(), final_answer.strip())
+
+                        st.session_state.selected_analysis = {
+                            "project": st.session_state.current_project_name,
+                            "reasoning": reasoning.strip(),
+                            "tasks": tasks
+                        }
+                        valid_response = True
+                    except Exception:
+                        # If parsing fails, we treat it as an invalid response to trigger a retry
+                        continue
+            if valid_response:
+                st.session_state.run_ai_now = False # Clears the trigger so the Overlay doesn't catch it again
+                if "current_project_name" in st.session_state:
+                    del st.session_state.current_project_name
+                st.session_state.pending_clear_notes = True
+                st.query_params["view"] = "results"
                 st.rerun()
             else:
-                st.error("Please enter a name.")
+                st.session_state.run_ai_now = False # Clears the trigger so the Overlay doesn't catch it again
+                st.error(f"🚨 Please refresh the page and try again.")
 
 @st.dialog("Rename Project ✏️")
 def rename_dialog(old_name, all_history):
@@ -177,7 +224,7 @@ def rename_project_in_history(all_history, old_name, new_name):
             item["project"] = final_name
             break
             
-    # 3. Save to the permanent file
+    # 3. Save to the permanent file.
     with open(HISTORY_FILE, "w") as f:
         json.dump(all_history, f, indent=4)
         
@@ -190,12 +237,78 @@ all_history = load_history()
 st.title("🚀 AI Operational Hub")
 st.write("Welcome to your program management dashboard.")
 
-# --- SIDEBAR: PROJECT LIST ---
-st.sidebar.header("Project List 📖")
+# ---ANALYZER BUTTON LOGIC ---
+# 1. Setup variables needed for the AI call
+knowledge_base = ""
+if st.session_state.get("user_input_key"):
+    try:
+        with open("guide.txt", "r") as f:
+            knowledge_base = f.read()
+    except FileNotFoundError:
+        pass
 
-# The New Project Popover
-if st.sidebar.button("➕ New Project", use_container_width=True):
-    new_project_dialog(should_trigger=False)
+if st.session_state.get("run_ai_now") and not st.session_state.get("show_new_project_dialog"):
+    captured_notes = st.session_state.get("user_input_key", "")
+    analysis_engine(knowledge_base, captured_notes)
+    st.stop()
+
+# --- SIDEBAR: PROJECT LIST ---
+with st.sidebar:
+    st.sidebar.header("Project List 📖")
+
+    # 1. State for controlling the inline creation UI
+    if "show_inline_new" not in st.session_state:
+        st.session_state.show_inline_new = False
+
+    # 2. The Button that toggles the UI
+    if not st.session_state.show_inline_new:
+        if st.button("➕ New Project", use_container_width=True, key="btn_sidebar_new"):
+            st.session_state.show_inline_new = True
+            st.rerun()
+    
+    # 3. THE INLINE UI (Same technique as Rename)
+    if st.session_state.show_inline_new:
+        with st.container(border=True):
+            st.write("Enter Project Name:")
+            new_proj_name = st.text_input(
+                "Project Name", 
+                placeholder="e.g. Client - Job Name",
+                key="inline_project_input",
+                label_visibility="collapsed"
+            )
+            
+            c1, c2 = st.columns(2)
+            # 1. Fetch current notes from state
+            current_notes = st.session_state.get("user_input_key", "").strip()
+            error_msg=None
+
+            with c1:
+                # Logic: Trigger creation if button clicked OR value exists on rerun
+                if st.button("Create ✅", key="inline_confirm", use_container_width=True):
+                    if not new_proj_name.strip():
+                        error_msg = "Name required"
+                    elif not current_notes:
+                        # 2. Block analysis if the text area is empty
+                        error_msg = "No notes found to analyze!"
+                    else:
+                        # 3. Proceed only if both name and notes exist
+                        final_name = get_unique_name(all_history, new_proj_name)
+                        st.session_state.current_project_name = final_name
+                        
+                        if "selected_analysis" in st.session_state:
+                            del st.session_state.selected_analysis
+                        
+                        st.session_state.show_inline_new = False
+                        st.session_state.run_ai_now = True
+                        st.rerun()
+            with c2:
+                if st.button("Cancel ❌", key="inline_cancel", use_container_width=True):
+                    st.session_state.show_inline_new = False
+                    st.rerun()
+                    
+            # --- Full width aligned error message ---     
+            if error_msg:
+                st.error(error_msg)
 
 # --- MAIN DISPLAY FOR HISTORICAL ENTRIES ---
 if "selected_analysis" in st.session_state:
@@ -257,146 +370,80 @@ user_input = st.text_area(
     key="user_input_key"
     )
 
-# ---ANALYZER BUTTON LOGIC ---
-# 1. Setup variables needed for the AI call
-knowledge_base = ""
-if user_input:
-    try:
-        with open("guide.txt", "r") as f:
-            knowledge_base = f.read()
-    except FileNotFoundError:
-        pass
-
 # 2. Define the button labels and checks
-if not st.session_state.get("current_project_name"):
-    if st.button("Analyze Workflow 🚀", use_container_width=True):
-        if not user_input or user_input.strip() == "":
-            st.error("Please insert the information to be analyzed.")
+if st.button("Analyze Workflow 🚀", use_container_width=True):
+    if not user_input or user_input.strip() == "":
+        st.error("Please insert the information to be analyzed.")
+    else:
+        if not st.session_state.get("current_project_name"):
+            st.session_state.show_inline_new = True
+            st.session_state.show_new_project_dialog = True
+            st.rerun()
         else:
-            new_project_dialog(should_trigger=True)
-else:
-    btn_label = f"Analyze Workflow for: {st.session_state.current_project_name}"
-
-    # The Bridge: If we are ready, do a quick rerun to ensure the dialog closes
-    if st.session_state.get("analysis_ready"):
-        st.session_state.analysis_ready = False
-        st.session_state.trigger_analysis = True
-        import time # We add this to give the browser time to close the dialog
-        time.sleep(0.5)
-        st.rerun()
-
-    if st.button(btn_label, use_container_width=True, on_click=close_archive) or st.session_state.get("trigger_analysis"):  
-        st.session_state.trigger_analysis = False  # Reset the trigger 
-    
-        with st.spinner("Analysing started."):
-                # This prioritizes the notes captured just before the text area was cleared
-                active_notes = st.session_state.get("temp_notes_buffer", user_input)
-                # Initialize variables
-                reasoning = ""
-                final_answer = ""
-                max_attempts = 3
-                attempt = 0
-                valid_response = False
-
-                while attempt < max_attempts and not valid_response:
-                    attempt += 1
-                    response = client.chat.completions.create(
-                        model="gpt-oss:20b",
-                        messages=[
-                            {
-                                "role": "system", 
-                                "content": (
-                                    "You are a Senior Operational Excellence Consultant. "
-                                    "STRICT REQUIREMENT: You must provide your output in two parts. "
-                                    "1. Your reasoning/thought process. "
-                                    "2. The string '---SEPARATOR---' on its own line. "
-                                    "3. A JSON list of strings for the tasks. "
-                                    "Example: Reasoning here... \n---SEPARATOR---\n[\"Task 1\"]"
-                                    '["Task 1", "Task 2", "Task 3"]'
-                                )
-                            },
-                            {
-                                "role": "user", 
-                                "content": f"Guide:\n{knowledge_base}\n\nNotes:\n{user_input}"
-                            }
-                        ],
-                        temperature=0.7 # Slight randomness helps avoid repeating the same mistake
-                    )
-                    
-                    full_response = response.choices[0].message.content
-
-                    if full_response and "---SEPARATOR---" in full_response:
-                        reasoning, final_answer = full_response.split("---SEPARATOR---", 1)
-                        
-                        try:
-                            tasks=parse_tasks(final_answer.strip())
-                            save_to_history(st.session_state.current_project_name, reasoning.strip(), final_answer.strip())
-
-                            st.session_state.selected_analysis = {
-                                "project": st.session_state.current_project_name,
-                                "reasoning": reasoning.strip(),
-                                "tasks": tasks
-                            }
-                            valid_response = True
-                        except Exception:
-                            # If parsing fails, we treat it as an invalid response to trigger a retry
-                            continue
-                if valid_response:
-                    st.session_state.pending_clear_notes = True
-                    if "current_project_name" in st.session_state:
-                        del st.session_state.current_project_name
-                    st.query_params["view"] = "results"
-                    st.rerun()
-                else:
-                        st.error(f"🚨 Please refresh the page and try again.")
+            st.session_state.run_ai_now = True
+            st.rerun()
 
 # --- SIDEBAR PERMANENT HISTORY ---
 st.sidebar.divider()
 st.sidebar.subheader("Permanent History 📂")
 
-# Main History Loop
-for idx, item in enumerate(list(all_history)): 
+for idx, item in enumerate(list(all_history)):
+    # Create the row layout
     col_btn, col_menu = st.sidebar.columns([0.8, 0.2])
-    
-    # Check if this specific item is being renamed
     rename_key = f"renaming_{idx}"
+    options_key = f"show_opts_{idx}" 
     
-    with col_btn:
-        if st.session_state.get(rename_key, False):
-            # --- RENAME MODE: Show Text Input ---
-            new_name = st.text_input(
-                "New Name",
-                value=item['project'],
-                key=f"input_{idx}",
-                label_visibility="collapsed",
-            )
-            # If user presses Enter or changes focus, save it
-            if new_name != item['project']:
-                # The function now handles the (1), (2) logic for us
-                rename_project_in_history(all_history, item['project'], new_name)
-                st.session_state[rename_key] = False
-                st.rerun()
-        else:
-            # --- NORMAL MODE: Show Folder Button ---
+    # 1. INITIALIZE (Inside the loop)
+    new_name = str(item['project'])
+
+    if st.session_state.get(rename_key, False):
+        # 2. ASSIGN (Properly indented under the if)
+        new_name = st.sidebar.text_input(
+            "New Name",
+            value=item['project'],
+            key=f"input_{item['project']}_{idx}", 
+            label_visibility="collapsed",
+        )
+    else:
+        with col_btn:
             if st.button(f"📁 {item['project']}", key=f"btn_{idx}", use_container_width=True):
                 st.session_state.selected_analysis = item 
                 st.session_state.archive_open = False 
                 st.rerun()
+
+    # --- RENAME MODE: Save/Cancel Buttons ---
+    if st.session_state.get(rename_key, False):
+        save_col, cancel_col = st.sidebar.columns(2) 
+        with save_col:
+            # THE FIX: This variable forces the IDE to recognize new_name as a valid string
+            is_valid_input = isinstance(new_name, str) and new_name.strip() != ""
             
-    with col_menu:
-        # We create a dynamic key using a session_state counter or the rename state
-        # This forces the popover to "reset" and close after a rerun
-        popover_key = f"popover_{idx}_{st.session_state.get(rename_key, False)}"
-        
-        with st.popover("⋮", use_container_width=True):
-            
-            # --- RENAME BUTTON ---
-            if st.button("Rename ✏️", key=f"ren_opt_{idx}", use_container_width=True, on_click=close_archive):
-                st.session_state[rename_key] = True
-                st.rerun() 
+            if st.button("Save ✅", key=f"save_{idx}", use_container_width=True) or (new_name != item['project'] and is_valid_input):
+                if new_name != item['project'] and is_valid_input:
+                    rename_project_in_history(all_history, item['project'], new_name)
+                st.session_state[rename_key] = False
+                st.rerun()
+        with cancel_col:
+            if st.button("Cancel ❌", key=f"can_{idx}", use_container_width=True):
+                st.session_state[rename_key] = False
+                st.rerun()
                 
-            # --- DELETE BUTTON ---
-            if st.button("Delete 🗑️", key=f"del_opt_{idx}", use_container_width=True, on_click=close_archive):
+    with col_menu:
+        if st.button("⋮", key=f"toggle_{idx}", use_container_width=True):
+            st.session_state[options_key] = not st.session_state.get(options_key, False)
+            st.rerun()
+
+    # --- INLINE OPTIONS MENU ---
+    if st.session_state.get(options_key, False):
+        opt_col1, opt_col2 = st.sidebar.columns(2)
+        with opt_col1:
+            if st.button("Rename ✏️", key=f"ren_opt_{idx}", use_container_width=True):
+                st.session_state[rename_key] = True
+                st.session_state[options_key] = False 
+                st.rerun()
+        with opt_col2:
+            if st.button("Delete 🗑️", key=f"del_opt_{idx}", use_container_width=True):
+                close_archive()
                 deleted = delete_from_history(all_history, item['project'])
                 if deleted:
                     deleted['original_index'] = idx 
@@ -405,6 +452,7 @@ for idx, item in enumerate(list(all_history)):
                 if st.session_state.get("selected_analysis", {}).get("project") == item['project']:
                     del st.session_state.selected_analysis
                 
+                st.session_state[options_key] = False 
                 st.rerun()
 
 # --- RECENTLY DELETED ARCHIVE ---
@@ -444,3 +492,8 @@ if st.session_state.get("trash_archive"):
                         # Explicitly keep it open
                         open_archive() 
                         st.rerun()
+
+# Reset all popovers when the main script finishes                       
+for k in list(st.session_state.keys()):
+    if str(k).startswith("kill_pop_"):
+        st.session_state[k] = False
