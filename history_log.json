@@ -1,5 +1,37 @@
 [
     {
+        "project": "test4",
+        "reasoning": "The user has a SAN and a Client Acceptance (CA). According to the guide, an Engagement Acceptance (EA) can be performed once CA is present, and opening a job requires a SAN, a signed Employer Letter (EL), and an EA. Therefore, the user needs to first secure a signed EL, then complete the EA, and finally open the job.",
+        "tasks": [
+            {
+                "task": "Obtain a signed EL",
+                "done": false
+            },
+            {
+                "task": "Complete Engagement Acceptance (EA)",
+                "done": false
+            },
+            {
+                "task": "Open job",
+                "done": false
+            }
+        ]
+    },
+    {
+        "project": "test3",
+        "reasoning": "To open a job you need a SAN, a signed EL, and an EA.  \nYou currently have a SAN and a CA, but you\u2019re missing the signed EL and the EA.  \nSo the next steps are:\n\n1. Obtain a signed Engagement Letter (EL).  \n2. Obtain the Engagement Acceptance (EA).  \n\nOnce you have both, you can proceed with opening the job.",
+        "tasks": [
+            {
+                "task": "Obtain a signed Engagement Letter (EL)",
+                "done": false
+            },
+            {
+                "task": "Obtain Engagement Acceptance (EA)",
+                "done": false
+            }
+        ]
+    },
+    {
         "project": "test2",
         "reasoning": "The user wants to open a job but only has a SAN (Service Account Number) and CA (Client Acceptance). According to the guide, to open a job we need a SAN, a signed EL (Execution Letter), and an EA (Engagement Acceptance). They already have the SAN and CA, so the next steps are:\n\n1. Acquire a signed EL, since it is missing.\n2. Once the signed EL is obtained, proceed with the EA (which is possible because the CA is already in place).\n\nThese are the concrete tasks they need to undertake to meet the job\u2011opening requirements.",
         "tasks": [

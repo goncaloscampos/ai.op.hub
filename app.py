@@ -282,6 +282,7 @@ with st.sidebar:
                         if "selected_analysis" in st.session_state:
                             del st.session_state.selected_analysis
                         
+                        st.session_state.show_new_project_dialog = False
                         st.session_state.show_inline_new = False
                         st.session_state.run_ai_now = True
                         st.rerun()
