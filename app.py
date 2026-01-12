@@ -181,22 +181,6 @@ def analysis_engine(kb, notes):
                 st.session_state.run_ai_now = False # Clears the trigger so the Overlay doesn't catch it again
                 st.error(f"🚨 Please refresh the page and try again.")
 
-@st.dialog("Rename Project ✏️")
-def rename_dialog(old_name, all_history):
-    with st.form("rename_project_form"):
-        st.write(f"Enter a new name for **{old_name}**:")
-        new_name = st.text_input("New Project Name", value=old_name)
-        
-        submitted = st.form_submit_button("Save Changes ✅", use_container_width=True)
-        
-        if submitted:
-            if new_name and new_name != old_name:
-                rename_project_in_history(all_history, old_name, new_name)
-                # If the renamed project was the one currently being viewed, update the view
-                if st.session_state.get("selected_analysis", {}).get("project") == old_name:
-                    st.session_state.selected_analysis["project"] = new_name
-            st.rerun()
-
 # name uniqueness checker
 def get_unique_name(existing_history, target_name):
     # Checks if a name exists and adds (1), (2), etc. if needed.
