@@ -6,6 +6,7 @@ import streamlit as st
 import re
 
 load_dotenv()
+
 # Secrets from Streamlit or locally
 def get_secret(key):
     if key in st.secrets:
@@ -460,7 +461,7 @@ if st.session_state.get("trash_archive"):
                         open_archive() 
                         st.rerun()
 
-# Reset all popovers when the main script finishes                       
+# DELETE - leftovers                    
 for k in list(st.session_state.keys()):
     if str(k).startswith("kill_pop_"):
         st.session_state[k] = False
