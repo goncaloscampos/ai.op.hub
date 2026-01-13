@@ -71,11 +71,11 @@ def save_to_history(project_name, reasoning, plan_text):
         "reasoning": reasoning.strip(),
         "tasks": parse_tasks(plan_text) # Process the text here!
     }
-    history.insert(0, new_entry) # Put newest at the top
+    history.insert(0, new_entry) # Top to bottom
     with open(HISTORY_FILE, "w") as f:
         json.dump(history, f, indent=4)
 
-# Find the project we are looking for
+# Pj task status update
 def update_task_status(history_data, project_name, task_index, new_status):
     for item in history_data:
         if item["project"] == project_name:
@@ -89,12 +89,9 @@ def delete_from_history(history_data, project_name):
     new_history = []
     
     for item in history_data:
-        # If we find the project and haven't 'deleted' one yet
         if item["project"] == project_name and deleted_item is None:
             deleted_item = item
-            # We don't add this one to new_history
         else:
-            # Keep all other items
             new_history.append(item)
     
     # Only write to the file if we actually removed something
@@ -162,11 +159,11 @@ def analysis_engine(kb, notes):
                             }
                             valid_response = True
                         except ValueError:
-                            # Parsing failed, will retry
+                            # Parsing failed, will retry - st.warning to user 
                             st.warning(f"Attempt {attempt}: Your computer needs vacations. Asking it nicely this time...")
                             continue
                 except Exception as e:
-                    st.error(f"Error during AI processing: {e}") # Show error in the terminal
+                    st.error(f"Error during AI processing: {e}") # st.error - to the terminal
                     continue
 
             if valid_response:
@@ -196,32 +193,30 @@ def get_unique_name(existing_history, target_name):
 
 # Rename function to the history sidebar
 def rename_project_in_history(all_history, old_name, new_name):
-    """Updates the project name in the permanent JSON file with duplicate protection."""
-    # 1. Generate a unique name based on what's already in history
-    # We pass all_history to ensure we don't collide with existing names
+    # (avoids name collisions)
     final_name = get_unique_name(all_history, new_name)
     
-    # 2. Update the name in the list
+    # name update in memory
     for item in all_history:
         if item["project"] == old_name:
             item["project"] = final_name
             break
             
-    # 3. Save to the permanent file.
+    # save to perm file
     with open(HISTORY_FILE, "w") as f:
         json.dump(all_history, f, indent=4)
         
     return final_name
 
-# --- LOAD PERMANENT HISTORY ---
+# load history file
 all_history = load_history()
 
-# --- STREAMLIT UI SETUP ---
+# UI at the top
 st.title("🚀 AI Operational Hub")
 st.write("Welcome to your program management dashboard.")
 
 # ---ANALYZER BUTTON LOGIC ---
-# 1. Setup variables needed for the AI call
+# Setup variables needed for the AI call
 knowledge_base = ""
 if st.session_state.get("user_input_key"):
     try:
@@ -235,73 +230,66 @@ if st.session_state.get("run_ai_now") and not st.session_state.get("show_new_pro
     analysis_engine(knowledge_base, captured_notes)
     st.stop()
 
-# --- SIDEBAR: PROJECT LIST ---
+# Siderbar - Project List and New Project Creation
 with st.sidebar:
     st.sidebar.header("Project List 📖")
 
-    # 1. State for controlling the inline creation UI
+    # 1. state control for inline UI
     if "show_inline_new" not in st.session_state:
         st.session_state.show_inline_new = False
 
-    # 2. The Button that toggles the UI
+    # 2. button to toggle the inline UI
     if not st.session_state.show_inline_new:
         if st.button("➕ New Project", use_container_width=True, key="btn_sidebar_new"):
             st.session_state.show_inline_new = True
             st.rerun()
     
-    # 3. THE INLINE UI (Same technique as Rename)
+    # 3. inline UI
     if st.session_state.show_inline_new:
-        with st.container(border=True):
-            st.write("Enter Project Name:")
-            new_proj_name = st.text_input(
-                "Project Name", 
-                placeholder="e.g. Client - Job Name",
-                key="inline_project_input",
-                label_visibility="collapsed"
-            )
-            
-            c1, c2 = st.columns(2)
-            # 1. Fetch current notes from state
-            current_notes = st.session_state.get("user_input_key", "").strip()
-            error_msg=None
-
-            with c1:
-                # Logic: Trigger creation if button clicked OR value exists on rerun
-                if st.button("Create ✅", key="inline_confirm", use_container_width=True):
-                    if not new_proj_name.strip():
-                        error_msg = "Name required"
-                    elif not current_notes:
-                        # 2. Block analysis if the text area is empty
-                        error_msg = "No notes found to analyze!"
-                    else:
-                        # 3. Proceed only if both name and notes exist
-                        final_name = get_unique_name(all_history, new_proj_name)
-                        st.session_state.current_project_name = final_name
+        if st.session_state.show_inline_new:
+                with st.container(border=True):
+                    with st.sidebar.form("new_project_form"):
+                        st.write("Enter Project Name:")
+                        new_proj_name = st.text_input(
+                            "Project Name", 
+                            placeholder="e.g. Client - Job Name",
+                            label_visibility="collapsed"
+                        )
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            submitted = st.form_submit_button("Create ✅", use_container_width=True)
+                        with c2:
+                            cancelled = st.form_submit_button("Cancel ❌", use_container_width=True)
                         
-                        if "selected_analysis" in st.session_state:
-                            del st.session_state.selected_analysis
+                        if cancelled:
+                            st.session_state.show_inline_new = False
+                            st.rerun()
                         
-                        st.session_state.show_new_project_dialog = False
-                        st.session_state.show_inline_new = False
-                        st.session_state.run_ai_now = True
-                        st.rerun()
-            with c2:
-                if st.button("Cancel ❌", key="inline_cancel", use_container_width=True):
-                    st.session_state.show_inline_new = False
-                    st.rerun()
-                    
-            # --- Full width aligned error message ---     
-            if error_msg:
-                st.error(error_msg)
+                        elif submitted:
+                            current_notes = st.session_state.get("user_input_key", "").strip()
+                            if not new_proj_name.strip():
+                                st.error("Name required")
+                            elif not current_notes:
+                                st.error("No notes found to analyze!")
+                            else:
+                                # success logic
+                                final_name = get_unique_name(all_history, new_proj_name)
+                                st.session_state.current_project_name = final_name
+                                # note clearing
+                                if "selected_analysis" in st.session_state:
+                                    del st.session_state.selected_analysis
+                                
+                                st.session_state.show_inline_new = False
+                                st.session_state.run_ai_now = True
+                                st.rerun()
 
-# --- MAIN DISPLAY FOR HISTORICAL ENTRIES ---
+# Display history entries
 if "selected_analysis" in st.session_state:
     selected = st.session_state.selected_analysis
     
     # This box shows which historical record is active
     st.info(f"Viewing Historical Record: **{selected['project']}**")
     
-    # Create two columns for side-by-side viewing
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("Reasoning 🧠")
@@ -311,77 +299,70 @@ if "selected_analysis" in st.session_state:
             # 1. Get the tasks list from our selected analysis
             tasks_list = selected.get('tasks', [])
 
-            # 2. Loop through the list and create checkboxes
-            # We use the index 'i' to create a unique key for each checkbox
+            # 2. tasks in checkboxes (i for unique key)
             for i, task_info in enumerate(tasks_list):
-                # The 'value' is set to whatever is currently saved (True or False)
-                # 1. Determine the display name based on status
                 display_name = task_info['task']
                 if task_info['done']:
-                    # Apply green color, checkmark, and strikethrough
+                    # Apply green color, checkmark ------- to be reviewed
                     display_name = f":green[✅ {display_name}]"
 
-                # 2. Create the checkbox with the new display name
+                # new checkbox -------- to be reviewed
                 is_checked = st.checkbox(
                     display_name, 
                     value=task_info['done'], 
                     key=f"check_{selected['project']}_{i}",
-                    on_change=close_archive # Close archive on any checkbox change
+                    on_change=close_archive # Close archive
                 )
-                # 3. If the user clicks the checkbox, update the status in our history file
+                # 3. status auto update in history file
                 if is_checked != task_info['done']:
-                    # 1. Update the permanent file
                     update_task_status(all_history, selected['project'], i, is_checked)
-                    # 2. Update the app's current memory so the color changes immediately
                     task_info['done'] = is_checked
-                    # 3. Refresh the screen so the Archive closes and colors update
                     st.rerun()
                    
-    st.markdown("---") # A clean line to separate sections
+    st.markdown("---") # Divider -------------- to be reviewed vs st.divider()
 
-    # Add a way to go back to the "New Analysis" view
+    # "new analysis" button
     if st.button("Close Historical View ❌", on_click=close_archive):
         del st.session_state.selected_analysis
         st.query_params.clear()
         st.rerun()
         
-    st.divider() # Adds a line to separate history from the new input area
+    st.divider() # Divider -------------- to be reviewed vs st.markdown("---")
 
-# --- USER INPUT AREA ---
-user_input = st.text_area(
-    "Paste your notes or workflow details here:", 
-    height=200, 
-    key="user_input_key"
+# User text input area
+with st.form("analysis_form"):
+    user_input = st.text_area(
+        "Paste your notes or workflow details here:", 
+        height=200, 
+        key="user_input_key"
     )
-
-# 2. Define the button labels and checks
-if st.button("Analyze Workflow 🚀", use_container_width=True):
-    if not user_input or user_input.strip() == "":
-        st.error("Please insert the information to be analyzed.")
-    else:
-        if not st.session_state.get("current_project_name"):
-            st.session_state.show_inline_new = True
-            st.session_state.show_new_project_dialog = True
-            st.rerun()
+    submitted = st.form_submit_button("Analyze Workflow 🚀", use_container_width=True)
+    if submitted:
+        if not user_input or user_input.strip():
+            st.error("Please enter some notes to be analyzed.")
         else:
-            st.session_state.run_ai_now = True
-            st.rerun()
+            if not st.session_state.get("current_project_name"):
+                st.session_state.show_inline_new = True
+                st.session_state.show_new_project_dialog = True
+                st.rerun()
+            else:
+                st.session_state.run_ai_now = True
+                st.rerun()
 
-# --- SIDEBAR PERMANENT HISTORY ---
+# Sidebar Perm history display
 st.sidebar.divider()
 st.sidebar.subheader("Permanent History 📂")
 
 for idx, item in enumerate(list(all_history)):
-    # Create the row layout
+    # Rows 
     col_btn, col_menu = st.sidebar.columns([0.8, 0.2])
     rename_key = f"renaming_{idx}"
     options_key = f"show_opts_{idx}" 
     
-    # 1. INITIALIZE (Inside the loop)
+    # Pj button
     new_name = str(item['project'])
 
     if st.session_state.get(rename_key, False):
-        # 2. ASSIGN (Properly indented under the if)
         new_name = st.sidebar.text_input(
             "New Name",
             value=item['project'],
@@ -395,11 +376,11 @@ for idx, item in enumerate(list(all_history)):
                 st.session_state.archive_open = False 
                 st.rerun()
 
-    # --- RENAME MODE: Save/Cancel Buttons ---
+    # Rname Save/Cancel buttons
     if st.session_state.get(rename_key, False):
         save_col, cancel_col = st.sidebar.columns(2) 
         with save_col:
-            # THE FIX: This variable forces the IDE to recognize new_name as a valid string
+            # Input validation !
             is_valid_input = isinstance(new_name, str) and new_name.strip() != ""
             
             if st.button("Save ✅", key=f"save_{idx}", use_container_width=True) or (new_name != item['project'] and is_valid_input):
@@ -417,7 +398,7 @@ for idx, item in enumerate(list(all_history)):
             st.session_state[options_key] = not st.session_state.get(options_key, False)
             st.rerun()
 
-    # --- INLINE OPTIONS MENU ---
+    # Options: Rename / Delete
     if st.session_state.get(options_key, False):
         opt_col1, opt_col2 = st.sidebar.columns(2)
         with opt_col1:
@@ -439,20 +420,19 @@ for idx, item in enumerate(list(all_history)):
                 st.session_state[options_key] = False 
                 st.rerun()
 
-# --- RECENTLY DELETED ARCHIVE ---
+# Deleted history
 if st.session_state.get("trash_archive"):
     st.sidebar.markdown("---")
     
-    # 1. Determine the label based on the current state
+    # Hide/Show btn logic
     arch_label = "Hide Recently Deleted ❌" if st.session_state.archive_open else "Show Recently Deleted 🗑️"
 
-    # 2. Create the full-width button that flips the state
+    # Hide/show btn
     if st.sidebar.button(arch_label, use_container_width=True):
         st.session_state.archive_open = not st.session_state.archive_open
         st.rerun()
 
     if st.session_state.archive_open:
-        # We use an 'indent' or a container to make it look grouped
         with st.sidebar.container(border=True):
             for arch_idx, arch_item in enumerate(reversed(st.session_state.trash_archive)):
                 col_arch_name, col_restore = st.columns([0.8, 0.2])
@@ -461,19 +441,18 @@ if st.session_state.get("trash_archive"):
                     st.markdown(f"**{arch_item['project']}**")
                 
                 with col_restore:
-                    # We remove the calculation from the top and set the state directly here
                     if st.button("↩️", key=f"restore_{arch_idx}", help="Restore"):
                         history = load_history()
                         pos = arch_item.get('original_index', 0)
                         history.insert(pos, arch_item)
-                        
+                        # Save updated history
                         with open(HISTORY_FILE, "w") as f:
                             json.dump(history, f, indent=4)
-                        
+                        # Remove from trash
                         real_idx = len(st.session_state.trash_archive) - 1 - arch_idx
                         st.session_state.trash_archive.pop(real_idx)
                         
-                        # Explicitly keep it open
+                        # Stay open after restore
                         open_archive() 
                         st.rerun()
 

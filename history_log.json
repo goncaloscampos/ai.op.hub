@@ -1,125 +1,32 @@
 [
     {
-        "project": "test7",
-        "reasoning": "The user wants to open a job but currently only has a SAN and Client Acceptance (CA). According to the guide, opening a job requires a SAN, a signed Engagement Letter (EL), and an Engagement Acceptance (EA). Since the user already has a SAN and CA, the next logical steps are:\n\n1. **Obtain Engagement Acceptance (EA)** \u2013 With CA in hand, the engagement acceptance can be processed.\n2. **Obtain a signed Engagement Letter (EL)** \u2013 The signed EL is also required for job opening.\n\nThese two tasks will allow the user to proceed with opening the job. No other actions are strictly required at this point.",
-        "tasks": [
-            {
-                "task": "Obtain Engagement Acceptance (EA)",
-                "done": false
-            },
-            {
-                "task": "Obtain a signed Engagement Letter (EL)",
-                "done": false
-            }
-        ]
-    },
-    {
-        "project": "test6",
-        "reasoning": "The user needs to open a job but only has a SAN and Client Acceptance (CA). According to the guide, an open job requires a SAN, a signed EL, and an Engagement Acceptance (EA). They already have the SAN and CA, so the missing elements are a signed EL and an EA. Therefore, the next steps are to obtain a signed EL and then request/complete the EA.",
-        "tasks": [
-            {
-                "task": "Request a signed Engagement Letter (EL)",
-                "done": false
-            },
-            {
-                "task": "Request an Engagement Acceptance (EA)",
-                "done": false
-            }
-        ]
-    },
-    {
-        "project": "test5 (1)",
-        "reasoning": "The user wants to open a job but only has a SAN and Client Acceptance (CA). To open a job we need a SAN, a signed EL (Engagement Letter), and an EA (Engagement Acceptance). They already have the SAN and CA, so the next steps are to get the signed EL and then obtain the EA, after which the job can be opened. They should also ensure the SAN is still valid, but that is assumed to be true.",
-        "tasks": [
-            {
-                "task": "Obtain a signed Engagement Letter (EL)",
-                "done": false
-            },
-            {
-                "task": "Obtain Engagement Acceptance (EA) using the Client Acceptance",
-                "done": false
-            },
-            {
-                "task": "Open the job",
-                "done": false
-            }
-        ]
-    },
-    {
-        "project": "test5",
-        "reasoning": "I reviewed the provided guide and the user\u2019s current status.  \n- The guide states that opening a job requires a SAN, a signed EL, and an EA.  \n- The user already has a SAN and a CA.  \n- With a CA, the next step is to obtain an EA, but we are missing a signed EL.  \n- Therefore, the logical sequence of tasks is: first secure a signed EL, then generate the EA, and finally open the job.",
-        "tasks": [
-            {
-                "task": "Obtain a signed EL",
-                "done": false
-            },
-            {
-                "task": "Obtain an Engagement Acceptance (EA)",
-                "done": false
-            },
-            {
-                "task": "Open job",
-                "done": false
-            }
-        ]
-    },
-    {
-        "project": "test4",
-        "reasoning": "The user has a SAN and a Client Acceptance (CA). According to the guide, an Engagement Acceptance (EA) can be performed once CA is present, and opening a job requires a SAN, a signed Employer Letter (EL), and an EA. Therefore, the user needs to first secure a signed EL, then complete the EA, and finally open the job.",
-        "tasks": [
-            {
-                "task": "Obtain a signed EL",
-                "done": false
-            },
-            {
-                "task": "Complete Engagement Acceptance (EA)",
-                "done": false
-            },
-            {
-                "task": "Open job",
-                "done": false
-            }
-        ]
-    },
-    {
-        "project": "test3",
-        "reasoning": "To open a job you need a SAN, a signed EL, and an EA.  \nYou currently have a SAN and a CA, but you\u2019re missing the signed EL and the EA.  \nSo the next steps are:\n\n1. Obtain a signed Engagement Letter (EL).  \n2. Obtain the Engagement Acceptance (EA).  \n\nOnce you have both, you can proceed with opening the job.",
-        "tasks": [
-            {
-                "task": "Obtain a signed Engagement Letter (EL)",
-                "done": false
-            },
-            {
-                "task": "Obtain Engagement Acceptance (EA)",
-                "done": false
-            }
-        ]
-    },
-    {
-        "project": "test2",
-        "reasoning": "The user wants to open a job but only has a SAN (Service Account Number) and CA (Client Acceptance). According to the guide, to open a job we need a SAN, a signed EL (Execution Letter), and an EA (Engagement Acceptance). They already have the SAN and CA, so the next steps are:\n\n1. Acquire a signed EL, since it is missing.\n2. Once the signed EL is obtained, proceed with the EA (which is possible because the CA is already in place).\n\nThese are the concrete tasks they need to undertake to meet the job\u2011opening requirements.",
+        "project": "test1 (1)",
+        "reasoning": "The user has a SAN (Statement of Authority) and Client Acceptance (CA), but wants to open a job. According to the guide, opening a job requires a SAN, a signed Engagement Letter (EL), and an Engagement Acceptance (EA). While the user already has a SAN and CA, they lack a signed EL and the EA. Since EA can be performed once CA is available, the user should first obtain a signed EL, then complete the EA, and finally open the job. These are the actionable steps.",
         "tasks": [
             {
                 "task": "Obtain signed EL",
                 "done": false
             },
             {
-                "task": "Proceed with Engagement Acceptance (EA)",
-                "done": false
-            }
-        ],
-        "original_index": 0
-    },
-    {
-        "project": "test1",
-        "reasoning": "The user states they only have a SAN and a Client Acceptance (CA) but need to open a job. According to the provided rules:\n\n1. To open a job, the prerequisites are a SAN, a signed Engagement Letter (EL), and an Engagement Acceptance (EA).\n2. The user already has a SAN.\n3. The user has a CA, which allows an EA to be created.\n4. The user is missing both the EA and the signed EL.\n\nTherefore, the user must first generate an EA using the existing CA, then obtain a signed EL, and finally open the job.",
-        "tasks": [
-            {
-                "task": "Obtain EA (Engagement Acceptance)",
+                "task": "Obtain EA",
                 "done": false
             },
             {
-                "task": "Obtain signed EL (Engagement Letter)",
+                "task": "Open job",
+                "done": false
+            }
+        ]
+    },
+    {
+        "project": "test1",
+        "reasoning": "The user has a SAN and Client Acceptance (CA) but needs to open a job. According to the guide, opening a job requires a SAN, a signed Engagement Letter (EL), and an Engagement Acceptance (EA). The user already has a SAN, so the missing pieces are a signed EL and the EA. Since they have CA, they can proceed with the EA. Therefore, the steps are: first obtain a signed EL, then complete the EA, and finally open the job.",
+        "tasks": [
+            {
+                "task": "Obtain signed Engagement Letter",
+                "done": false
+            },
+            {
+                "task": "Complete Engagement Acceptance",
                 "done": false
             },
             {
