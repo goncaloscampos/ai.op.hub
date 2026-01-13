@@ -230,7 +230,7 @@ if st.session_state.get("user_input_key"):
     except FileNotFoundError:
         pass
 
-if st.session_state.get("run_ai_now") and not st.session_state.get("show_new_project_dialog"):
+if st.session_state.get("run_ai_now"):
     captured_notes = st.session_state.get("user_input_key", "")
     analysis_engine(knowledge_base, captured_notes)
     st.stop()
@@ -348,7 +348,6 @@ with st.form("analysis_form"):
         else:
             if not st.session_state.get("current_project_name"):
                 st.session_state.show_inline_new = True
-                st.session_state.show_new_project_dialog = True
                 st.rerun()
             else:
                 st.session_state.run_ai_now = True
