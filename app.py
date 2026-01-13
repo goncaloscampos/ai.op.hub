@@ -6,6 +6,11 @@ import streamlit as st
 import re
 
 load_dotenv()
+# Secrets from Streamlit or locally
+def get_secret(key):
+    if key in st.secrets:
+        return st.secrets[key]
+    return os.getenv(key)
 
 # Streamlit page config
 st.set_page_config(layout="wide")
@@ -114,7 +119,7 @@ def analysis_engine(kb, notes):
             attempt = 0
             valid_response = False
 
-            target_model=os.getenv("AI_MODEL_NAME", "gpt-oss:20b")
+            target_model=get_secret("AI_MODEL_NAME") or "gpt-oss:20b"
 
             while attempt < max_attempts and not valid_response:
                 attempt += 1
