@@ -343,7 +343,7 @@ with st.form("analysis_form"):
     )
     submitted = st.form_submit_button("Analyze Workflow 🚀", use_container_width=True)
     if submitted:
-        if not user_input or user_input.strip():
+        if not user_input or not user_input.strip():
             st.error("Please enter some notes to be analyzed.")
         else:
             if not st.session_state.get("current_project_name"):
