@@ -146,81 +146,99 @@ def rename_project_in_history(all_history, old_name, new_name):
     save_whole_history(current_history)
     return final_name
 
+# --- HYBRID AI ENGINE ---
 def analysis_engine(kb, notes):
-    # AI Call logic here
     st.info("Analysis started")
-    target_model=get_secret("AI_MODEL_NAME") or "gpt-oss:20b"
-    is_google_native="gemini" in target_model.lower()
-    with st.spinner("Please wait a few seconds..."):
-            # This prioritizes the notes captured just before the text area was cleared
-            captured_notes = notes
-            # Initialize variables
-            reasoning = ""
-            final_answer = ""
-            max_attempts = 3
-            attempt = 0
-            valid_response = False
+    
+    # 1. Check if we are using Gemini (Cloud) or Ollama (Local)
+    target_model = get_secret("AI_MODEL_NAME") or "gpt-oss:20b"
+    is_google_native = "gemini" in target_model.lower()
 
-            while attempt < max_attempts and not valid_response:
-                attempt += 1
-                try:
+    with st.spinner("Please wait a few seconds..."):
+        # Setup inputs
+        user_message = f"Guide:\n{kb}\n\nNotes:\n{notes}"
+        
+        # System prompt (Identical for both)
+        system_instruction = (
+            "You are a Senior Operational Excellence Consultant. "
+            "STRICT REQUIREMENT: You must provide your output in two parts. "
+            "1. Your reasoning/thought process. "
+            "2. The string '---SEPARATOR---' on its own line. "
+            "3. A JSON list of strings for the tasks. "
+            "Example: Reasoning... \n---SEPARATOR---\n[\"Task 1\", \"Task 2\"]"
+        )
+
+        attempt = 0
+        valid_response = False
+        max_attempts = 3
+
+        while attempt < max_attempts and not valid_response:
+            attempt += 1
+            try:
+                full_response = ""
+
+                # --- PATH A: GEMINI NATIVE (Fixes Cloud 404) ---
+                if is_google_native:
+                    genai.configure(api_key=get_secret("AI_API_KEY"))
+                    model = genai.GenerativeModel(
+                        model_name=target_model,
+                        system_instruction=system_instruction
+                    )
+                    # Native Google Call
+                    response = model.generate_content(
+                        user_message,
+                        generation_config=genai.types.GenerationConfig(temperature=0.7)
+                    )
+                    full_response = response.text
+
+                # --- PATH B: OLLAMA / OPENAI (Your original code) ---
+                else:
                     response = client.chat.completions.create(
                         model=target_model,
                         messages=[
-                            {
-                                "role": "system", 
-                                "content": (
-                                    "You are a Senior Operational Excellence Consultant. "
-                                    "STRICT REQUIREMENT: You must provide your output in two parts. "
-                                    "1. Your reasoning/thought process. "
-                                    "2. The string '---SEPARATOR---' on its own line. "
-                                    "3. A JSON list of strings for the tasks. "
-                                    "Example: Reasoning here... \n---SEPARATOR---\n[\"Task 1\"]"
-                                    '["Task 1", "Task 2", "Task 3"]'
-                                )
-                            },
-                            {
-                                "role": "user", 
-                                "content": f"Guide:\n{kb}\n\nNotes:\n{notes}"
-                            }
+                            {"role": "system", "content": system_instruction},
+                            {"role": "user", "content": user_message}
                         ],
-                        temperature=0.7, # Randomness control
-                        timeout=120 # 2 minutes timeout
+                        temperature=0.7,
+                        timeout=120
                     )
-                    
                     full_response = response.choices[0].message.content
 
-                    if full_response and "---SEPARATOR---" in full_response:
-                        reasoning, final_answer = full_response.split("---SEPARATOR---", 1)
-                        
-                        try:
-                            tasks=parse_tasks(final_answer.strip())
-                            save_to_history(st.session_state.current_project_name, reasoning.strip(), final_answer.strip())
+                # --- COMMON PARSING (Kept exactly as is) ---
+                if full_response and "---SEPARATOR---" in full_response:
+                    reasoning, final_answer = full_response.split("---SEPARATOR---", 1)
+                    
+                    try:
+                        tasks = parse_tasks(final_answer.strip())
+                        save_to_history(st.session_state.current_project_name, reasoning.strip(), final_answer.strip())
 
-                            st.session_state.selected_analysis = {
-                                "project": st.session_state.current_project_name,
-                                "reasoning": reasoning.strip(),
-                                "tasks": tasks
-                            }
-                            valid_response = True
-                        except ValueError:
-                            # Parsing failed, will retry - st.warning to user 
-                            st.warning(f"Attempt {attempt}: Your computer needs vacations. Asking it nicely this time...")
-                            continue
-                except Exception as e:
-                    st.error(f"Error ({'Gemini' if is_google_native else 'Ollama'}): {e}")
-                    continue
-                
-            if valid_response:
-                st.session_state.run_ai_now = False # Clears the trigger so the Overlay doesn't catch it again
-                if "current_project_name" in st.session_state:
-                    del st.session_state.current_project_name
-                st.session_state.pending_clear_notes = True
-                st.query_params["view"] = "results"
-                st.rerun()
-            else:
-                st.session_state.run_ai_now = False # Clears the trigger so the Overlay doesn't catch it again
-                st.error(f"🚨 Please refresh the page and try again.")
+                        st.session_state.selected_analysis = {
+                            "project": st.session_state.current_project_name,
+                            "reasoning": reasoning.strip(),
+                            "tasks": tasks
+                        }
+                        valid_response = True
+                    except ValueError:
+                        st.warning(f"Attempt {attempt}: Parsing failed. Retrying...")
+                        continue
+                else:
+                    st.warning(f"Attempt {attempt}: AI format incorrect. Retrying...")
+
+            except Exception as e:
+                st.error(f"Error ({'Gemini' if is_google_native else 'Ollama'}): {e}")
+                continue
+
+        # Final Cleanup
+        if valid_response:
+            st.session_state.run_ai_now = False 
+            if "current_project_name" in st.session_state:
+                del st.session_state.current_project_name
+            st.session_state.pending_clear_notes = True
+            st.query_params["view"] = "results"
+            st.rerun()
+        else:
+            st.session_state.run_ai_now = False
+            st.error("🚨 Please refresh the page and try again.")
 
 # load history file
 all_history = get_history()
