@@ -149,6 +149,8 @@ def rename_project_in_history(all_history, old_name, new_name):
 def analysis_engine(kb, notes):
     # AI Call logic here
     st.info("Analysis started")
+    target_model=get_secret("AI_MODEL_NAME") or "gpt-oss:20b"
+    is_google_native="gemini" in target_model.lower()
     with st.spinner("Please wait a few seconds..."):
             # This prioritizes the notes captured just before the text area was cleared
             captured_notes = notes
@@ -158,8 +160,6 @@ def analysis_engine(kb, notes):
             max_attempts = 3
             attempt = 0
             valid_response = False
-
-            target_model=get_secret("AI_MODEL_NAME") or "gpt-oss:20b"
 
             while attempt < max_attempts and not valid_response:
                 attempt += 1
