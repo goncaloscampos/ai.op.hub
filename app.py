@@ -148,6 +148,22 @@ def analysis_engine(kb, notes):
     # 1. Check if we are using Gemini (Cloud) or Ollama (Local)
     target_model = get_secret("AI_MODEL_NAME") or "gpt-oss:20b"
     is_google_native = "gemini" in target_model.lower()
+    
+    # Convert old Gemini model names to new format
+    if is_google_native:
+        # Remove "models/" prefix if present
+        target_model = target_model.replace("models/", "")
+        # Map old model names to new equivalents
+        model_mapping = {
+            "gemini-1.5-flash-latest": "gemini-2.5-flash",
+            "gemini-1.5-flash": "gemini-2.5-flash",
+            "gemini-1.5-pro-latest": "gemini-2.5-pro",
+            "gemini-1.5-pro": "gemini-2.5-pro",
+            "gemini-pro": "gemini-2.5-pro",
+            "gemini-flash": "gemini-2.5-flash"
+        }
+        # Use mapping if available, otherwise keep as is but ensure it's a valid new format
+        target_model = model_mapping.get(target_model, target_model)
 
     with st.spinner("Please wait a few seconds..."):
         # Setup inputs
