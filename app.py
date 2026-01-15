@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from streamlit_local_storage import LocalStorage
 from openai import OpenAI
 import google.generativeai as genai
 import json
@@ -7,6 +8,9 @@ import streamlit as st
 import re
 
 load_dotenv()
+
+# Streamlit page config
+st.set_page_config(layout="wide")
 
 # Secrets from Streamlit or locally
 def get_secret(key):
@@ -17,8 +21,11 @@ def get_secret(key):
         pass 
     return os.getenv(key) #local env fetch
 
-# Streamlit page config
-st.set_page_config(layout="wide")
+# API Client Setup
+client=OpenAI(
+    base_url=get_secret("AI_BASE_URL"),
+    api_key=get_secret("AI_API_KEY")
+)
 
 # Session state cleanup for notes
 if st.session_state.get("pending_clear_notes"):
@@ -46,18 +53,21 @@ if "sidebar_breaker" not in st.session_state:
 if "user_input_key" not in st.session_state:
     st.session_state.user_input_key = "I need an open job, I only have a SAN and CA" # DEBUG TEXT --- REMOVE IN PRODUCTION
 
-# API Client Setup
-client=OpenAI(
-    base_url=get_secret("AI_BASE_URL"),
-    api_key=get_secret("AI_API_KEY")
-)
-HISTORY_FILE = "history_log.json"
-
-def load_history():
-    if os.path.exists(HISTORY_FILE):
-        with open(HISTORY_FILE, "r") as f:
-            return json.load(f)
+# User history
+ls=LocalStorage()
+STORAGE_KEY="user_history_v1"
+# Load 
+def get_history():
+    if "local_history_cache" in st.session_state:
+        return st.session_state.local_history_cache
+    stored_data=ls.getItem(STORAGE_KEY)
+    if stored_data is not None:
+        st.session_state.local_history_cache=stored_data
+        return stored_data
     return []
+def save_whole_history(history_data):
+    st.session_state.local_history_cache = history_data
+    ls.setItem(STORAGE_KEY, history_data)
 
 # Format the AI response and convert the JSON list into checkboxes
 def parse_tasks(text):
@@ -75,41 +85,66 @@ def parse_tasks(text):
     raise ValueError("No JSON list found")
 
 def save_to_history(project_name, reasoning, plan_text):
-    history = load_history()
+    history = get_history()
+    # Create new entry
     new_entry = {
         "project": project_name,
-        "reasoning": reasoning.strip(),
-        "tasks": parse_tasks(plan_text) # Process the text here!
+        "reasoning": reasoning,
+        "tasks": parse_tasks(plan_text)
     }
-    history.insert(0, new_entry) # Top to bottom
-    with open(HISTORY_FILE, "w") as f:
-        json.dump(history, f, indent=4)
+    history.insert(0, new_entry)
+    save_whole_history(history)
 
-# Pj task status update
-def update_task_status(history_data, project_name, task_index, new_status):
-    for item in history_data:
+def update_task_status(history, project_name, task_index, new_status):
+    current_history=get_history()
+    for intem in current_history:
         if item["project"] == project_name:
             item["tasks"][task_index]["done"] = new_status
             break
-    with open(HISTORY_FILE, "w") as f:
-        json.dump(history_data, f, indent=4)
+    save_whole_history(current_history)
 
 def delete_from_history(history_data, project_name):
+    current_history = get_history()
     deleted_item = None
     new_history = []
     
-    for item in history_data:
+    for item in current_history:
         if item["project"] == project_name and deleted_item is None:
             deleted_item = item
         else:
             new_history.append(item)
-    
-    # Only write to the file if we actually removed something
+            
     if deleted_item:
-        with open(HISTORY_FILE, "w") as f:
-            json.dump(new_history, f, indent=4)
+        save_whole_history(new_history)
             
     return deleted_item
+
+# name uniqueness checker
+def get_unique_name(existing_history, target_name):
+    # Checks if a name exists and adds (1), (2), etc. if needed.
+    existing_names = [item["project"] for item in existing_history]
+    if target_name not in existing_names:
+        return target_name
+    
+    counter = 1
+    new_name = f"{target_name} ({counter})"
+    while new_name in existing_names:
+        counter += 1
+        new_name = f"{target_name} ({counter})"
+    return new_name
+
+# Rename function to the history sidebar
+def rename_project_in_history(all_history, old_name, new_name):
+    current_history = get_history()
+    final_name = get_unique_name(current_history, new_name)
+    
+    for item in current_history:
+        if item["project"] == old_name:
+            item["project"] = final_name
+            break
+            
+    save_whole_history(current_history)
+    return final_name
 
 def analysis_engine(kb, notes):
     # AI Call logic here
@@ -187,39 +222,8 @@ def analysis_engine(kb, notes):
                 st.session_state.run_ai_now = False # Clears the trigger so the Overlay doesn't catch it again
                 st.error(f"🚨 Please refresh the page and try again.")
 
-# name uniqueness checker
-def get_unique_name(existing_history, target_name):
-    # Checks if a name exists and adds (1), (2), etc. if needed.
-    existing_names = [item["project"] for item in existing_history]
-    if target_name not in existing_names:
-        return target_name
-    
-    counter = 1
-    new_name = f"{target_name} ({counter})"
-    while new_name in existing_names:
-        counter += 1
-        new_name = f"{target_name} ({counter})"
-    return new_name
-
-# Rename function to the history sidebar
-def rename_project_in_history(all_history, old_name, new_name):
-    # (avoids name collisions)
-    final_name = get_unique_name(all_history, new_name)
-    
-    # name update in memory
-    for item in all_history:
-        if item["project"] == old_name:
-            item["project"] = final_name
-            break
-            
-    # save to perm file
-    with open(HISTORY_FILE, "w") as f:
-        json.dump(all_history, f, indent=4)
-        
-    return final_name
-
 # load history file
-all_history = load_history()
+all_history = get_history()
 
 # UI at the top
 st.title("🚀 AI Operational Hub")
@@ -451,12 +455,11 @@ if st.session_state.get("trash_archive"):
                 
                 with col_restore:
                     if st.button("↩️", key=f"restore_{arch_idx}", help="Restore"):
-                        history = load_history()
+                        history = get_history()
                         pos = arch_item.get('original_index', 0)
                         history.insert(pos, arch_item)
                         # Save updated history
-                        with open(HISTORY_FILE, "w") as f:
-                            json.dump(history, f, indent=4)
+                        save_whole_history(history)
                         # Remove from trash
                         real_idx = len(st.session_state.trash_archive) - 1 - arch_idx
                         st.session_state.trash_archive.pop(real_idx)
