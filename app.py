@@ -5,7 +5,7 @@ import json
 import streamlit as st
 import re
 
-load_dotenv()
+load_dotenv(override=True)
 
 # Secrets from Streamlit or locally
 def get_secret(key):
@@ -44,8 +44,8 @@ if "user_input_key" not in st.session_state:
 
 # API Client Setup
 client=OpenAI(
-    base_url=os.getenv("AI_BASE_URL"),
-    api_key=os.getenv("AI_API_KEY")
+    base_url=get_secret("AI_BASE_URL"),
+    api_key=get_secret("AI_API_KEY")
 )
 HISTORY_FILE = "history_log.json"
 
