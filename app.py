@@ -13,23 +13,9 @@ def get_secret(key):
     try:
         if key in st.secrets: #Streamlit secrets
             return st.secrets[key]
-    except FileNotFoundError:
-        pass    # No Streamlit secrets file found
-    except Exception:
-        pass    # Other errors (e.g., running locally without Streamlit secrets)
+    except (FileNotFoundError, Exception):
+        pass 
     return os.getenv(key) #local env fetch
-
-try:
-    # Attempt to access a specific key in st.secrets
-    if "AI_API_KEY" in st.secrets:
-        print("\n" + "=" * 40)
-        print(" ☁️  USING STREAMLIT CLOUD SECRETS")
-        print("=" * 40 + "\n")
-except (FileNotFoundError, Exception):
-    # If st.secrets crashes (missing file), we are local
-    print("\n" + "=" * 40)
-    print(" 💻  USING LOCAL .ENV FILE")
-    print("=" * 40 + "\n")
 
 # Streamlit page config
 st.set_page_config(layout="wide")
