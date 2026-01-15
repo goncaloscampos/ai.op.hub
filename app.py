@@ -1,11 +1,12 @@
 import os
-from dotenv import load_dotenv
 from streamlit_local_storage import LocalStorage
 from openai import OpenAI
-import google.generativeai as genai
+from google.genai import types
 import json
 import streamlit as st
 import re
+from google import genai
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -20,12 +21,6 @@ def get_secret(key):
     except (FileNotFoundError, Exception):
         pass 
     return os.getenv(key) #local env fetch
-
-# API Client Setup
-client=OpenAI(
-    base_url=get_secret("AI_BASE_URL"),
-    api_key=get_secret("AI_API_KEY")
-)
 
 # Session state cleanup for notes
 if st.session_state.get("pending_clear_notes"):
@@ -97,7 +92,7 @@ def save_to_history(project_name, reasoning, plan_text):
 
 def update_task_status(history, project_name, task_index, new_status):
     current_history=get_history()
-    for intem in current_history:
+    for item in current_history:
         if item["project"] == project_name:
             item["tasks"][task_index]["done"] = new_status
             break
@@ -179,20 +174,24 @@ def analysis_engine(kb, notes):
 
                 # --- PATH A: GEMINI NATIVE (Fixes Cloud 404) ---
                 if is_google_native:
-                    genai.configure(api_key=get_secret("AI_API_KEY"))
-                    model = genai.GenerativeModel(
-                        model_name=target_model,
-                        system_instruction=system_instruction
-                    )
-                    # Native Google Call
-                    response = model.generate_content(
-                        user_message,
-                        generation_config=genai.types.GenerationConfig(temperature=0.7)
+                    genai_client = genai.Client(api_key=get_secret("AI_API_KEY"))
+                    response = genai_client.models.generate_content(
+                        model=target_model,
+                        contents=user_message,
+                        config=types.GenerateContentConfig(
+                            system_instruction=system_instruction,
+                            temperature=0.7
+                        )
                     )
                     full_response = response.text
 
                 # --- PATH B: OLLAMA / OPENAI (Your original code) ---
                 else:
+                    # API Client Setup
+                    client=OpenAI(
+                        base_url=get_secret("AI_BASE_URL"),
+                        api_key=get_secret("AI_API_KEY")
+                    )
                     response = client.chat.completions.create(
                         model=target_model,
                         messages=[
