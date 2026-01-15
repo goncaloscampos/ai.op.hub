@@ -208,9 +208,9 @@ def analysis_engine(kb, notes):
                             st.warning(f"Attempt {attempt}: Your computer needs vacations. Asking it nicely this time...")
                             continue
                 except Exception as e:
-                    st.error(f"Error during AI processing: {e}") # st.error - to the terminal
+                    st.error(f"Error ({'Gemini' if is_google_native else 'Ollama'}): {e}")
                     continue
-
+                
             if valid_response:
                 st.session_state.run_ai_now = False # Clears the trigger so the Overlay doesn't catch it again
                 if "current_project_name" in st.session_state:
