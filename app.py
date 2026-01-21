@@ -167,12 +167,6 @@ def analysis_engine(kb, notes):
 
         # System prompt (Identical for both)
         system_instruction = (
-            # "You are a Senior Operational Excellence Consultant. "
-            # "STRICT REQUIREMENT: You must provide your output in two parts. "
-            # "1. Your reasoning/thought process. "
-            # "2. The string '---SEPARATOR---' on its own line. "
-            # "3. A JSON list of strings for the tasks. "
-            # "Example: Reasoning... \n---SEPARATOR---\n[\"Task 1\", \"Task 2\"]"
             "You are a Senior Operational Excellence Consultant. "
             "STRICT REQUIREMENT: You must provide your output as a SINGLE VALID JSON OBJECT. "
             "The JSON must have exactly two keys: "
@@ -359,7 +353,7 @@ if "selected_analysis" in st.session_state:
                 display_name = task_info['task']
                 if task_info['done']:
                     # Apply green color, checkmark ------- to be reviewed
-                    display_name = f":green[✅ {display_name}]"
+                    display_name = f":green[{display_name}]"
 
                 # new checkbox -------- to be reviewed
                 is_checked = st.checkbox(
