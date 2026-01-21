@@ -1,4 +1,5 @@
 import os
+from uuid import uuid4
 from streamlit_local_storage import LocalStorage
 from openai import OpenAI
 from google.genai import types
@@ -37,14 +38,8 @@ if "archive_open" not in st.session_state:
     st.session_state.archive_open = False
 if "trash_archive" not in st.session_state:
     st.session_state.trash_archive = []
-if "analysis_ready" not in st.session_state:
-    st.session_state.analysis_ready = False
-if "trigger_analysis" not in st.session_state:
-    st.session_state.trigger_analysis = False
 if "run_ai_now" not in st.session_state:
     st.session_state.run_ai_now = False
-if "sidebar_breaker" not in st.session_state:
-    st.session_state.sidebar_breaker = False
 if "user_input_key" not in st.session_state:
     st.session_state.user_input_key = "I need an open job, I only have a SAN and CA" # DEBUG TEXT --- REMOVE IN PRODUCTION
 
@@ -83,6 +78,7 @@ def save_to_history(project_name, reasoning, plan_text):
     history = get_history()
     # Create new entry
     new_entry = {
+        "id": uuid4().hex,
         "project": project_name,
         "reasoning": reasoning,
         "tasks": parse_tasks(plan_text)
@@ -90,21 +86,21 @@ def save_to_history(project_name, reasoning, plan_text):
     history.insert(0, new_entry)
     save_whole_history(history)
 
-def update_task_status(history, project_name, task_index, new_status):
+def update_task_status(project_id, task_index, new_status):
     current_history=get_history()
     for item in current_history:
-        if item["project"] == project_name:
+        if item["id"] == project_id:
             item["tasks"][task_index]["done"] = new_status
             break
     save_whole_history(current_history)
 
-def delete_from_history(history_data, project_name):
+def delete_from_history(project_id):
     current_history = get_history()
     deleted_item = None
     new_history = []
     
     for item in current_history:
-        if item["project"] == project_name and deleted_item is None:
+        if item["id"] == project_id and deleted_item is None:
             deleted_item = item
         else:
             new_history.append(item)
@@ -129,7 +125,7 @@ def get_unique_name(existing_history, target_name):
     return new_name
 
 # Rename function to the history sidebar
-def rename_project_in_history(all_history, old_name, new_name):
+def rename_project_in_history(old_name, new_name):
     current_history = get_history()
     final_name = get_unique_name(current_history, new_name)
     
@@ -168,7 +164,7 @@ def analysis_engine(kb, notes):
     with st.spinner("Please wait a few seconds..."):
         # Setup inputs
         user_message = f"Guide:\n{kb}\n\nNotes:\n{notes}"
-        
+
         # System prompt (Identical for both)
         system_instruction = (
             "You are a Senior Operational Excellence Consultant. "
@@ -177,9 +173,10 @@ def analysis_engine(kb, notes):
             "2. The string '---SEPARATOR---' on its own line. "
             "3. A JSON list of strings for the tasks. "
             "Example: Reasoning... \n---SEPARATOR---\n[\"Task 1\", \"Task 2\"]"
+            
         )
 
-        attempt = 0
+        attempt = 0 
         valid_response = False
         max_attempts = 3
 
@@ -362,7 +359,7 @@ if "selected_analysis" in st.session_state:
                 )
                 # 3. status auto update in history file
                 if is_checked != task_info['done']:
-                    update_task_status(all_history, selected['project'], i, is_checked)
+                    # update_task_status( selected['project'], i, is_checked)
                     task_info['done'] = is_checked
                     st.rerun()
                    
@@ -431,7 +428,7 @@ for idx, item in enumerate(list(all_history)):
             
             if st.button("Save ✅", key=f"save_{idx}", use_container_width=True) or (new_name != item['project'] and is_valid_input):
                 if new_name != item['project'] and is_valid_input:
-                    rename_project_in_history(all_history, item['project'], new_name)
+                    rename_project_in_history(item['project'], new_name)
                 st.session_state[rename_key] = False
                 st.rerun()
         with cancel_col:
@@ -455,7 +452,7 @@ for idx, item in enumerate(list(all_history)):
         with opt_col2:
             if st.button("Delete 🗑️", key=f"del_opt_{idx}", use_container_width=True):
                 close_archive()
-                deleted = delete_from_history(all_history, item['project'])
+                deleted = delete_from_history(item['id'])
                 if deleted:
                     deleted['original_index'] = idx 
                     st.session_state.trash_archive.append(deleted)
