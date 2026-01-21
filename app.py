@@ -193,7 +193,7 @@ def analysis_engine(kb, notes):
                         contents=user_message,
                         config=types.GenerateContentConfig(
                             system_instruction=system_instruction,
-                            temperature=0.7
+                            temperature=0.2
                         )
                     )
                     full_response = response.text
@@ -497,6 +497,12 @@ if st.session_state.get("trash_archive"):
                         # Stay open after restore
                         open_archive() 
                         st.rerun()
+
+            st.markdown("---")
+            if st.button("Clear All 🗑️", use_container_width=True):
+                st.session_state.trash_archive = []
+                st.session_state.archive_open = False
+                st.rerun()
 
 # DELETE - leftovers                    
 for k in list(st.session_state.keys()):
