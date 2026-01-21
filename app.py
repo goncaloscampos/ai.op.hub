@@ -409,9 +409,14 @@ st.sidebar.subheader("Permanent History 📂")
 
 for idx, item in enumerate(list(all_history)):
     # Rows 
-    col_btn, col_menu = st.sidebar.columns([0.8, 0.2])
+    col_btn, col_menu = st.sidebar.columns([0.85, 0.15])
     rename_key = f"renaming_{idx}"
     options_key = f"show_opts_{idx}" 
+    
+    active_id=st.session_state.get("selected_analysis", {}).get("id")
+    is_active=(active_id==item["id"])
+
+    btn_type = "primary" if is_active else "secondary"
     
     # Pj button
     new_name = str(item['project'])
@@ -420,12 +425,12 @@ for idx, item in enumerate(list(all_history)):
         new_name = st.sidebar.text_input(
             "New Name",
             value=item['project'],
-            key=f"input_{item['project']}_{idx}", 
+            key=f"input_{item['id']}_{idx}", 
             label_visibility="collapsed",
         )
     else:
         with col_btn:
-            if st.button(f"📁 {item['project']}", key=f"btn_{idx}", use_container_width=True):
+            if st.button(f"📁 {item['project']}", key=f"btn_{idx}", use_container_width=True, type=btn_type):
                 st.session_state.selected_analysis = item 
                 st.session_state.archive_open = False 
                 st.rerun()
@@ -489,7 +494,7 @@ if st.session_state.get("trash_archive"):
     if st.session_state.archive_open:
         with st.sidebar.container(border=True):
             for arch_idx, arch_item in enumerate(reversed(st.session_state.trash_archive)):
-                col_arch_name, col_restore = st.columns([0.8, 0.2])
+                col_arch_name, col_restore = st.columns([0.90, 0.10])
                 
                 with col_arch_name:
                     st.markdown(f"**{arch_item['project']}**")
@@ -497,11 +502,17 @@ if st.session_state.get("trash_archive"):
                 with col_restore:
                     if st.button("↩️", key=f"restore_{arch_idx}", help="Restore"):
                         history = get_history()
+                        # Get original spot or default to top
                         pos = arch_item.get('original_index', 0)
+                        
+                        # Safety: ensure position isn't larger than the list
+                        if pos > len(history):
+                            pos = len(history)
+                            
                         history.insert(pos, arch_item)
-                        # Save updated history
                         save_whole_history(history)
-                        # Remove from trash
+                        
+                        # Calculate real index to remove from trash
                         real_idx = len(st.session_state.trash_archive) - 1 - arch_idx
                         st.session_state.trash_archive.pop(real_idx)
                         
