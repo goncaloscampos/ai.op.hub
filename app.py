@@ -74,14 +74,14 @@ def parse_tasks(text):
     # If no brackets are found, trigger the fallback
     raise ValueError("No JSON list found")
 
-def save_to_history(project_name, reasoning, plan_text):
+def save_to_history(project_name, reasoning, tasks):
     history = get_history()
     # Create new entry
     new_entry = {
         "id": uuid4().hex,
         "project": project_name,
         "reasoning": reasoning,
-        "tasks": parse_tasks(plan_text)
+        "tasks": tasks
     }
     history.insert(0, new_entry)
     save_whole_history(history)
@@ -125,12 +125,12 @@ def get_unique_name(existing_history, target_name):
     return new_name
 
 # Rename function to the history sidebar
-def rename_project_in_history(old_name, new_name):
+def rename_project_in_history(project_id, new_name):
     current_history = get_history()
     final_name = get_unique_name(current_history, new_name)
     
     for item in current_history:
-        if item["project"] == old_name:
+        if item["id"] == project_id:
             item["project"] = final_name
             break
             
@@ -167,13 +167,18 @@ def analysis_engine(kb, notes):
 
         # System prompt (Identical for both)
         system_instruction = (
+            # "You are a Senior Operational Excellence Consultant. "
+            # "STRICT REQUIREMENT: You must provide your output in two parts. "
+            # "1. Your reasoning/thought process. "
+            # "2. The string '---SEPARATOR---' on its own line. "
+            # "3. A JSON list of strings for the tasks. "
+            # "Example: Reasoning... \n---SEPARATOR---\n[\"Task 1\", \"Task 2\"]"
             "You are a Senior Operational Excellence Consultant. "
-            "STRICT REQUIREMENT: You must provide your output in two parts. "
-            "1. Your reasoning/thought process. "
-            "2. The string '---SEPARATOR---' on its own line. "
-            "3. A JSON list of strings for the tasks. "
-            "Example: Reasoning... \n---SEPARATOR---\n[\"Task 1\", \"Task 2\"]"
-            
+            "STRICT REQUIREMENT: You must provide your output as a SINGLE VALID JSON OBJECT. "
+            "The JSON must have exactly two keys: "
+            "1. 'reasoning': A string explaining your thought process. "
+            "2. 'tasks': A list of strings for the actionable steps. "
+            "Do not include markdown formatting (like ```json). Just the raw JSON object."
         )
 
         attempt = 0 
@@ -217,25 +222,31 @@ def analysis_engine(kb, notes):
                     full_response = response.choices[0].message.content
 
                 # --- COMMON PARSING (Kept exactly as is) ---
-                if full_response and "---SEPARATOR---" in full_response:
-                    reasoning, final_answer = full_response.split("---SEPARATOR---", 1)
-                    
+                if full_response:
                     try:
-                        tasks = parse_tasks(final_answer.strip())
-                        save_to_history(st.session_state.current_project_name, reasoning.strip(), final_answer.strip())
+                        clean_text = full_response.replace("```json", "").replace("```", "").strip() # cleaning AI response
+                        data = json.loads(clean_text) # parsing
+                        reasoning = data.get("reasoning", "No reasoning provided.")
+                        task_names = data.get("tasks", [])
+                        tasks = [{"task": name, "done": False} for name in task_names]
+                        save_to_history(st.session_state.current_project_name, reasoning, tasks)
 
                         st.session_state.selected_analysis = {
                             "project": st.session_state.current_project_name,
-                            "reasoning": reasoning.strip(),
+                            "reasoning": reasoning,
                             "tasks": tasks
                         }
                         valid_response = True
-                    except ValueError:
-                        st.warning(f"Attempt {attempt}: Parsing failed. Retrying...")
+                        
+                    except json.JSONDecodeError:
+                        st.warning(f"Attempt {attempt}: AI did not return valid JSON. Retrying...")
+                        continue
+                    except Exception as e:
+                        st.warning(f"Attempt {attempt}: Parsing error: {e}")
                         continue
                 else:
-                    st.warning(f"Attempt {attempt}: AI format incorrect. Retrying...")
-
+                    st.warning(f"Attempt {attempt}: Empty response. Retrying...")
+                
             except Exception as e:
                 st.error(f"Error ({'Gemini' if is_google_native else 'Ollama'}): {e}")
                 continue
@@ -428,7 +439,7 @@ for idx, item in enumerate(list(all_history)):
             
             if st.button("Save ✅", key=f"save_{idx}", use_container_width=True) or (new_name != item['project'] and is_valid_input):
                 if new_name != item['project'] and is_valid_input:
-                    rename_project_in_history(item['project'], new_name)
+                    rename_project_in_history(item['id'], new_name)
                 st.session_state[rename_key] = False
                 st.rerun()
         with cancel_col:
