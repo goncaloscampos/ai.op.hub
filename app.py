@@ -297,11 +297,11 @@ with st.sidebar:
     if st.session_state.show_inline_new:
         if st.session_state.show_inline_new:
                 with st.container(border=True):
-                    with st.sidebar.form("new_project_form"):
+                    with st.form("new_project_form"):
                         st.write("Enter Project Name:")
                         new_proj_name = st.text_input(
                             "Project Name", 
-                            placeholder="e.g. Client - Job Name",
+                            placeholder="e.g. Client - Job",
                             label_visibility="collapsed"
                         )
                         c1, c2 = st.columns(2)
@@ -381,9 +381,11 @@ if "selected_analysis" in st.session_state:
 # User text input area
 with st.form("analysis_form"):
     user_input = st.text_area(
-        "Paste your notes or workflow details here:", 
+        "",
+        placeholder="Paste your notes or workflow details here:", 
         height=200, 
-        key="user_input_key"
+        key="user_input_key",
+        label_visibility="collapsed"
     )
     submitted = st.form_submit_button("Analyze Workflow 🚀", use_container_width=True)
     if submitted:
